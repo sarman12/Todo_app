@@ -4,6 +4,9 @@
 
 Todo App is a simple and intuitive task management application that helps users organize and manage their daily tasks effectively. The app allows users to add, edit, complete, and delete tasks, with a real-time progress tracker that motivates users to complete their tasks.
 
+**Visual**
+![Screenshot of Todo App](todoapp.png)
+
 ## Features
 
 - **Add Tasks**: Easily add new tasks to your to-do list.
