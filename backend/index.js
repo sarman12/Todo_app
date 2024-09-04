@@ -1,3 +1,4 @@
+require('dotenv').config();  // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
 const { Sequelize, DataTypes } = require('sequelize');
@@ -9,12 +10,9 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const JWT_SECRET = "9f7e3a71f863e1d85d065aaf044b72cb67122e9e6c764a45a7a3e13b7b007e5f";
+const JWT_SECRET = process.env.JWT_SECRET;
+const sequelize = new Sequelize(process.env.DATABASE_URL);
 
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: 'database.sqlite'
-});
 
 const User = sequelize.define('User', {
   username: {
@@ -236,7 +234,7 @@ app.delete('/todo/:id', authenticate, async (req, res) => {
 
 
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
