@@ -1,0 +1,295 @@
+.todo_container {
+    height: 100vh;
+    overflow: hidden;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+/* Content Container */
+.todo_header {
+    color: rgb(255, 252, 252);
+    margin-top:20px;
+    text-align: center;
+}
+.todo_content {
+    padding: 30px;
+    width: 90%;
+    margin: auto;
+    border-radius: 8px;
+    display: flex;
+    gap: 20px;
+    box-shadow: 0px 3px 50px rgba(4, 209, 220, 0.2);
+    background-color: rgba(16, 3, 38, 0.3);
+    backdrop-filter: blur(40px);
+    position: relative;
+    z-index: 2;
+    margin-top: -25px;
+    height: 87%;
+}
+
+/* Other styles remain the same */
+
+/* Left Part */
+.left_part {
+    /* border: 2px red solid; */
+    width: 70%;
+    padding: 10px;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    position: relative;
+    height: 80vh;
+    border-radius: 8px;
+}
+
+/* Progress Bar */
+.progress_bar {
+    background-color: #e0e0e0;
+    border-radius: 25px;
+    overflow: hidden;
+    height: 100%;
+    width: 15px;
+    margin-bottom: 20px;
+}
+
+.progress {
+    background-color: #76c7c0;
+    height: 100%;
+    /* width: 25%; */
+    border-radius: 25px;
+    transition: height 0.4s ease;
+}
+
+/* To-do Input */
+.todo_part{
+    /* border:2px red solid; */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+.todo {
+    border: #333 solid 2px;
+    background-color: #f4f4f4;
+    border: navajowhite; 
+}
+
+.todo_input {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    gap: 10px;
+}
+
+.todo_input input {
+    width: 100%;
+    padding: 5px;
+    font-size: 1.2rem;
+    border: none;
+    background-color: transparent;
+}
+.todo_input input:hover,input:focus{
+    border: none;
+    outline: none;
+}
+
+.todo_input svg {
+    color: #76c7c0;
+    cursor: pointer;
+    font-size:2.5rem;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.todo_input svg:hover {
+    color: #55908c;
+    transform: scale(1.1);
+}
+
+/* To-do List */
+.todo_list {
+    /* border: 2px red solid; */
+    display: flex;
+    flex-direction: column;
+    height:65vh;
+    gap: 13px;
+    overflow-y: auto;
+}
+
+.todo_item {
+    height: auto;
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: #ffffff;
+    border-radius: 4px;
+    gap: 10px;
+    box-shadow: 0 2px 4px rgba(194, 11, 11, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+.todo_item:hover {
+    background-color: #f9f9f9;
+}
+
+.todo_item input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.todo_item span {
+    flex: 1;
+    color: #333;
+    font-size: 1rem;
+}
+
+.todo_item svg {
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.todo_item svg:hover {
+    color: #c0392b;
+    transform: scale(1.1);
+}
+
+/* Right Part */
+.right_part,.right_part_visible {
+    /* border: 2px red solid; */
+    width: 30%;
+    padding: 20px;
+    /* background-color: #ffffff; */
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.right_part_visible{
+    background-color: transparent;
+    /* display: none; */
+    transform: translate(-10ppx,-20px);
+}
+
+.profile_section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    height: 100%;
+    justify-content: center;
+}
+
+.image_div {
+    position: relative;
+}
+
+.image_div img {
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    border: 4px solid #76c7c0;
+    /* Enhanced border around the image */
+}
+
+.add_icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff;
+    border-radius: 50%;
+    padding: 5px;
+    color: #76c7c0;
+    cursor: pointer;
+    transition: color 0.3s ease, transform 0.3s ease;
+    border: 2px solid #76c7c0;
+}
+
+.right_part p,.right_part_visible p {
+    margin: 10px 0;
+    font-size: 1rem;
+    color: #333;
+}
+.profile_section button{
+    padding:0.8rem 2rem;
+    font-size: 1.1rem;
+    color: #fff;
+    background-color: #333;
+}
+/* Profile Section Enhancements */
+.profile_section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: center;
+    background: linear-gradient(135deg, #76c7c0, #f4f4f4);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.task_stats,
+.profile_info {
+    background-color: #ffffff;
+    padding: 5px;
+    border-radius: 8px;
+    width: 100%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin-bottom: 20px;
+}
+.user_icon {
+    position: fixed;
+    z-index: inherit;
+    top: 0;
+    right: 0;
+    font-size: 20px;
+    display: none;
+}
+@media screen and (max-width: 912px) {
+    .user_icon{
+        display: block;
+
+    }
+    .right_part{
+        display: none;
+    }
+    .left_part{
+        width: 100%;
+    }
+    .todo_content{
+        width: 100%;
+        height: 85%;
+    }
+    .right_part_visible{
+        transform: translate(0px,0px);
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 400px;
+        display: block;
+    }
+}
+@media screen and (max-width: 480px) {
+    .todo_header h1{
+        font-size: 20px;
+    }
+    .todo_content{
+        padding:0;
+        width: 100%;
+    }
+    .right_part_visible{
+        left: 0;
+        width: 300px;
+    }
+}
