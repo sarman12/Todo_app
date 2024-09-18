@@ -65,7 +65,7 @@ function Register() {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/register', {
+      const response = await axios.post('https://todoapi-gamma.vercel.app//register', {
         username,
         email,
         password,

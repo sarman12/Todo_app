@@ -20,7 +20,7 @@ function To_do() {
   useEffect(() => {
     const fetchTodos = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/todo', {
+        const response = await axios.get('https://todoapi-gamma.vercel.app/todo', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
@@ -45,7 +45,7 @@ function To_do() {
   const handleAddTodo = async () => {
     if (todoElement.trim()) {
       try {
-        const response = await axios.post('http://localhost:5000/todo', {
+        const response = await axios.post('https://todoapi-gamma.vercel.app/todo', {
           title: todoElement,
         }, {
           headers: {
@@ -63,7 +63,7 @@ function To_do() {
 
   const handleDeleteTodo = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/todo/${id}`, {
+      await axios.delete(`https://todoapi-gamma.vercel.app//todo/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
 
@@ -86,7 +86,7 @@ function To_do() {
   const handleSaveEdit = async () => {
     if (editText.trim()) {
       try {
-        const response = await axios.put(`http://localhost:5000/todo/${todoArray[editIndex].id}`, {
+        const response = await axios.put(`https://todoapi-gamma.vercel.app/todo/${todoArray[editIndex].id}`, {
           title: editText,
           isCompleted: todoArray[editIndex].isCompleted,
         }, {
@@ -109,7 +109,7 @@ function To_do() {
       const todo = todoArray[index];
       const updatedIsCompleted = !todo.isCompleted;
 
-      const response = await axios.put(`http://localhost:5000/todo/${todo.id}`, {
+      const response = await axios.put(`https://todoapi-gamma.vercel.app/todo/${todo.id}`, {
         title: todo.title,
         isCompleted: updatedIsCompleted,
       }, {
