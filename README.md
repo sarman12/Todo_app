@@ -26,7 +26,8 @@ Todo App is a simple and intuitive task management application that helps users 
 
 - **Node.js**: A JavaScript runtime environment that executes JavaScript code server-side.
 - **Express.js**: A fast, unopinionated, minimalist web framework for Node.js.
-- **SQLite**: A lightweight, disk-based database that doesn’t require a separate server process.
+- **MongoDB**: A NoSQL database for storing user data and todos.
+- **Mongoose**: An Object Data Modeling (ODM) library for MongoDB.
 
 ### Libraries Used
 
