@@ -17,8 +17,7 @@ function Login() {
     // Simulate a loading time
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1500); // Loader is visible for 1.5 seconds
-
+    }, 1500); 
     return () => clearTimeout(timer);
   }, []);
 

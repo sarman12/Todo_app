@@ -1,55 +1,55 @@
 require('dotenv').config();  // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
-const { Sequelize, DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid'); 
+const mongoose = require('mongoose');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const sequelize = new Sequelize(process.env.DATABASE_URL);
 
+mongoose.connect("mongodb+srv://sahaneearman601:lIVTEIxeXswF394S@tododb.k0zdi.mongodb.net/?retryWrites=true&w=majority&appName=Tododb", { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("Connected to MongoDB"))
+  .catch(err => console.error("Error connecting to MongoDB:", err));
 
-const User = sequelize.define('User', {
+const userSchema = new mongoose.Schema({
   username: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true
   },
   email: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
     unique: true
   },
   password: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: true
   },
   totalTasks: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
+    type: Number,
+    default: 0
   },
   completedTasks: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
+    type: Number,
+    default: 0
   },
-  todos: {
-    type: DataTypes.JSON,
-    allowNull: false,
-    defaultValue: []
-  }
+  todos: [
+    {
+      id: String,
+      title: String,
+      isCompleted: Boolean
+    }
+  ]
 });
 
-// Sync models with the database
-sequelize.sync()
-  .then(() => console.log("Connected to SQLite database"))
-  .catch(err => console.error("Error connecting to SQLite database:", err));
+const User = mongoose.model('User', userSchema);
 
+// Authentication middleware
 const authenticate = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -67,25 +67,28 @@ const authenticate = (req, res, next) => {
   });
 };
 
+// Register Route
 app.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await User.create({
+    const newUser = new User({
       username,
       email,
       password: hashedPassword
     });
 
+    await newUser.save();
+
     const token = jwt.sign(
-      { id: newUser.id, username: newUser.username },
+      { id: newUser._id, username: newUser.username },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -100,11 +103,12 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// Login Route
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ error: 'User not found with this email' });
     }
@@ -115,7 +119,7 @@ app.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.username },
+      { id: user._id, username: user.username },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -131,9 +135,10 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Get Todo Route
 app.get('/todo', authenticate, async (req, res) => {
   try {
-    const user = await User.findOne({ where: { id: req.user.id } });
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -144,6 +149,7 @@ app.get('/todo', authenticate, async (req, res) => {
   }
 });
 
+// Create Todo Route
 app.post('/todo', authenticate, async (req, res) => {
   const { title } = req.body;
 
@@ -152,14 +158,13 @@ app.post('/todo', authenticate, async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ where: { id: req.user.id } });
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const newTodo = { id: uuidv4(), title: title.trim(), isCompleted: false };
-    const updatedTodo =[... user.todos , newTodo];
-    user.todos = updatedTodo;
+    user.todos.push(newTodo);
     user.totalTasks += 1;
 
     await user.save();
@@ -171,18 +176,18 @@ app.post('/todo', authenticate, async (req, res) => {
   }
 });
 
+// Update Todo Route
 app.put('/todo/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   const { title, isCompleted } = req.body;
 
   try {
-    const user = await User.findOne({ where: { id: req.user.id } });
+    const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const todoIndex = user.todos.findIndex(todo => todo.id === id);
-    if (todoIndex === -1) return res.status(404).json({ error: 'Todo not found' });
+    const todo = user.todos.find(todo => todo.id === id);
+    if (!todo) return res.status(404).json({ error: 'Todo not found' });
 
-    const todo = user.todos[todoIndex];
     if (title) todo.title = title.trim();
     if (typeof isCompleted === 'boolean') {
       const previousStatus = todo.isCompleted;
@@ -196,7 +201,6 @@ app.put('/todo/:id', authenticate, async (req, res) => {
       }
     }
 
-    user.changed('todos', true);
     await user.save();
     res.json({ todos: user.todos });
   } catch (err) {
@@ -205,12 +209,12 @@ app.put('/todo/:id', authenticate, async (req, res) => {
   }
 });
 
-// Deleting a TODO item
+// Delete Todo Route
 app.delete('/todo/:id', authenticate, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const user = await User.findOne({ where: { id: req.user.id } });
+    const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const todoIndex = user.todos.findIndex(todo => todo.id === id);
@@ -219,20 +223,16 @@ app.delete('/todo/:id', authenticate, async (req, res) => {
     const todo = user.todos[todoIndex];
     if (todo.isCompleted) user.completedTasks -= 1;
 
-    user.todos.splice(todoIndex, 1); 
-    user.totalTasks -= 1;  
-    user.changed('todos', true);
-    await user.save();
+    user.todos.splice(todoIndex, 1);
+    user.totalTasks -= 1;
 
-    console.log("Todos after deletion:", user.todos); 
+    await user.save();
     res.json({ todos: user.todos });
   } catch (err) {
     console.error('Error deleting todo:', err);
     res.status(500).json({ error: 'Failed to delete todo' });
   }
 });
-
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
