@@ -15,7 +15,7 @@ function To_do() {
   const [editText, setEditText] = useState("");
   const [completedTasks, setCompletedTasks] = useState(new Set());
   const [username, setUsername] = useState("");
-  const [showProfile, setShowProfile] = useState(false); // New state for profile pop-up
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     const fetchTodos = async () => {
