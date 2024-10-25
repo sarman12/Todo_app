@@ -36,6 +36,8 @@ function Login() {
 
       if (response.status === 200) {
         const { token, username } = response.data;
+        console.log(token);
+        console.log(username);
         localStorage.setItem('token', token);
         localStorage.setItem('username', username);
         setSuccessMessage('Login Successful, redirecting to the dashboard');

@@ -14,8 +14,9 @@ function To_do() {
   const [editIndex, setEditIndex] = useState(null);
   const [editText, setEditText] = useState("");
   const [completedTasks, setCompletedTasks] = useState(new Set());
-  const [username, setUsername] = useState("");
   const [showProfile, setShowProfile] = useState(false);
+
+  const user=localStorage.getItem("username") || "guest";
 
   useEffect(() => {
     const fetchTodos = async () => {
@@ -30,10 +31,9 @@ function To_do() {
         const completedIndexes = new Set(response.data.todos
           .map((todo, index) => todo.isCompleted ? index : null)
           .filter(index => index !== null));
+          
         setCompletedTasks(completedIndexes);
 
-        const storedUsername = localStorage.getItem('username');
-        setUsername(storedUsername || "Guest");
       } catch (err) {
         console.error('Error fetching todos:', err);
       }
@@ -150,7 +150,7 @@ function To_do() {
   return (
     <div className="todo_container">
       <div className="todo_header">
-        <h1>{username}'s Personal Task Master!</h1>
+        <h1>{user}'s Personal Task Master!</h1>
         
       </div>
 
@@ -210,7 +210,7 @@ function To_do() {
                 <img src="https://via.placeholder.com/100" alt="Profile" />
                 <BiAddToQueue className="add_icon" />
               </div>
-              <p>{username}</p>
+              <p>{user}</p>
               <div className="task_stats">
                 <p>Total Tasks: {todoArray.length}</p>
                 <p>Completed Tasks: {completedTasks.size}</p>

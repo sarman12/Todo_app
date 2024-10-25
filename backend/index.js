@@ -1,9 +1,8 @@
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config(); 
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 const { Sequelize, DataTypes } = require('sequelize');
 
 const app = express();
@@ -14,10 +13,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: './Todo_db.sqlite' // Path to SQLite database file
+  storage: './Todo_db.sqlite'
 });
 
-// Define User model
 const User = sequelize.define('User', {
   username: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -26,22 +24,18 @@ const User = sequelize.define('User', {
   completedTasks: { type: DataTypes.INTEGER, defaultValue: 0 }
 });
 
-// Define Todo model
 const Todo = sequelize.define('Todo', {
   title: { type: DataTypes.STRING, allowNull: false },
   isCompleted: { type: DataTypes.BOOLEAN, defaultValue: false }
 });
 
-// User-Todo relationship (One-to-Many)
 User.hasMany(Todo, { onDelete: 'CASCADE' });
 Todo.belongsTo(User);
 
-// Sync models with database
 sequelize.sync().then(() => {
   console.log("Database & tables created!");
 }).catch(err => console.error("Error initializing database:", err));
 
-// Authentication middleware
 const authenticate = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -54,8 +48,6 @@ const authenticate = (req, res, next) => {
     next();
   });
 };
-
-// Register Route
 app.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -74,7 +66,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Login Route
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -97,7 +88,6 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Get Todo Route
 app.get('/todo', authenticate, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, { include: [Todo] });
@@ -110,7 +100,6 @@ app.get('/todo', authenticate, async (req, res) => {
   }
 });
 
-// Create Todo Route
 app.post('/todo', authenticate, async (req, res) => {
   const { title } = req.body;
 
@@ -132,8 +121,6 @@ app.post('/todo', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to create todo' });
   }
 });
-
-// Update Todo Route
 app.put('/todo/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   const { title, isCompleted } = req.body;
@@ -158,7 +145,6 @@ app.put('/todo/:id', authenticate, async (req, res) => {
   }
 });
 
-// Delete Todo Route
 app.delete('/todo/:id', authenticate, async (req, res) => {
   const { id } = req.params;
 
