@@ -123,16 +123,13 @@ function Register() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
-            <UserPlus className="w-8 h-8 text-white" />
-          </div>
+         
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             Create Account
           </h1>
           <p className="text-gray-600">Join us and start managing your tasks efficiently</p>
         </div>
 
-        {/* Registration Form */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
           <div className="space-y-6">
             <div className="space-y-2">
@@ -166,7 +163,6 @@ function Register() {
               </div>
             </div>
 
-            {/* Full Name Field */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Full Name</label>
               <div className="relative">
@@ -205,7 +201,6 @@ function Register() {
               </div>
             </div>
 
-            {/* Confirm Password Field */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Confirm Password</label>
               <div className="relative">

@@ -1,10 +1,53 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckSquare, Bell, Star, Target, Users, Zap, ArrowRight, Check } from 'lucide-react';
-
+import { useEffect } from 'react';
+import { useState } from 'react';
 function Home() {
+  const [UserCount,setUserCount]=useState(0);
+  const [TodoCount,setTodoCount] = useState(0);
   const navigate = useNavigate();
+  
+  const handleGetUser = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/get-user");
+      const data = await response.json();
 
+      if (!data || !data.count) {
+        console.log("Unable to fetch the data");
+        setUserCount(0);
+      } else {
+        setUserCount(data.count);
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      setUserCount(0);
+    }
+  };
+  const handleGetTodos = async () =>{
+    try {
+      const response = await fetch("http://localhost:5000/get-total-tasks");
+      const data = await response.json();
+
+      if (!data || !data.count) {
+        console.log("Unable to fetch the data");
+        setTodoCount(0);
+      } else {
+        setTodoCount(data.count);
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      setTodoCount(0);
+    }
+  }
+
+ useEffect(() => {
+  const fetchData = async () => {
+    await Promise.all([handleGetUser(), handleGetTodos()]);
+    setLoading(false);
+  };
+  fetchData();
+}, []);
   const features = [
     {
       icon: <Target className="w-8 h-8 text-blue-600" />,
@@ -40,7 +83,6 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -86,10 +128,7 @@ function Home() {
       <section className="pt-16 pb-20 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16">
           <div className="text-center">
-            <div className="inline-flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 mb-8 border border-white/20">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-700">✨ Now with AI-powered suggestions</span>
-            </div>
+            
             
             <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-8 leading-tight">
               Stay Organized,
@@ -117,20 +156,19 @@ function Home() {
               </button>
             </div>
 
-            <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">10K+</div>
-                <div className="text-gray-600">Active Users</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">1M+</div>
-                <div className="text-gray-600">Tasks Completed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">99.9%</div>
-                <div className="text-gray-600">Uptime</div>
+            <div className="mt-16 flex justify-center  mx-auto ">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl text-center">
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{UserCount}+</div>
+                  <div className="text-gray-600">Active Users</div>
+                </div>
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">{TodoCount}+</div>
+                  <div className="text-gray-600">Tasks Completed</div>
+                </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>

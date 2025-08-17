@@ -81,7 +81,6 @@ function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-lg">
             <LogIn className="w-8 h-8 text-white" />
@@ -92,10 +91,8 @@ function Login() {
           <p className="text-gray-600">Sign in to your account to continue</p>
         </div>
 
-        {/* Login Form */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
           <div className="space-y-6">
-            {/* Email Field */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Email Address</label>
               <div className="relative">
@@ -111,7 +108,6 @@ function Login() {
               </div>
             </div>
 
-            {/* Password Field */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Password</label>
               <div className="relative">
@@ -134,7 +130,6 @@ function Login() {
               </div>
             </div>
 
-            {/* Forgot Password Link */}
             <div className="text-right">
               <a href="#" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                 Forgot your password?
@@ -190,7 +185,6 @@ function Login() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
             Don't have an account?{' '}
