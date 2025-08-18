@@ -369,7 +369,6 @@ function To_do() {
                   />
                 </svg>
                 
-                {/* Center content with enhanced styling */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <div className="text-center">
                     <div className="text-3xl font-bold bg-gradient-to-br from-blue-600 to-blue-800 bg-clip-text text-transparent mb-1">
