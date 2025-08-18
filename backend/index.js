@@ -122,12 +122,6 @@ app.get('/todo', authenticate, async (req, res) => {
 app.post('/todo', authenticate, async (req, res) => {
   try {
     const { title, createDate, lastUpdatedDate, dueDate, priority } = req.body;
-    if (!title || title.trim() === '') {
-      return res.status(400).json({ error: 'Task title cannot be empty' });
-    }
-    if (priority && !['low', 'medium', 'high', 'critical'].includes(priority)) {
-      return res.status(400).json({ error: 'Invalid priority value' });
-    }
     const todo = new Todo({
       title: title.trim(),
       isCompleted: false,
