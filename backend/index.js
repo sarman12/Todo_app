@@ -11,6 +11,11 @@ const app = express();
 const Mongo_Db_Connection_String = process.env.Mongo_Db_Connection_String;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
+if (!Mongo_Db_Connection_String) {
+  console.error('MongoDB connection string not found in environment variables');
+  process.exit(1);
+}
+
 mongoose.connect(Mongo_Db_Connection_String, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -49,28 +54,53 @@ const Todo = mongoose.model("Todo", TodoSchema);
 const authenticate = (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    if (!authHeader) return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
+    
     const token = authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
 
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(403).json({ error: 'Forbidden: Invalid token' });
+      if (err) {
+        return res.status(403).json({ error: 'Forbidden: Invalid token' });
+      }
       req.user = decoded;
       next();
     });
   } catch (error) {
-    res.status(500).json({ error: 'Authentication error' });
+    return res.status(500).json({ error: 'Authentication error' });
   }
 };
 
 app.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    if (!username || !email || !password) return res.status(400).json({ error: 'Username, email, and password are required' });
-    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Username, email, and password are required' });
+    }
+    
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) return res.status(400).json({ error: 'User already exists with this email' });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+
+    const existingUserByEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingUserByEmail) {
+      return res.status(409).json({ error: 'Account with this email already exists' });
+    }
+
+    const existingUserByUsername = await User.findOne({ username: username.trim() });
+    if (existingUserByUsername) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -83,60 +113,116 @@ app.post('/register', async (req, res) => {
     });
 
     await newUser.save();
+    
+    const token = jwt.sign(
+      { id: newUser._id, username: newUser.username },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
-    const token = jwt.sign({ id: newUser._id, username: newUser.username }, JWT_SECRET, { expiresIn: '1h' });
-    res.status(201).json({ message: `${newUser.username} registered successfully`, token });
+    return res.status(201).json({ 
+      message: `${newUser.username} registered successfully`, 
+      token,
+      username: newUser.username
+    });
   } catch (err) {
-    if (err.code === 11000) return res.status(400).json({ error: 'Email already in use' });
-    res.status(500).json({ error: 'Registration failed' });
+    if (err.code === 11000) {
+      if (err.keyPattern && err.keyPattern.email) {
+        return res.status(409).json({ error: 'Account with this email already exists' });
+      }
+      return res.status(409).json({ error: 'Account already exists' });
+    }
+    console.error('Registration error:', err);
+    return res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
 });
 
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) return res.status(400).json({ error: 'User not found with this email' });
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid email or password' });
+    }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) return res.status(400).json({ error: 'Invalid credentials' });
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: 'Invalid email or password' });
+    }
 
-    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ message: 'Login successful', token, username: user.username });
+    const token = jwt.sign(
+      { id: user._id, username: user.username }, 
+      JWT_SECRET, 
+      { expiresIn: '24h' }
+    );
+    
+    return res.json({ 
+      message: 'Login successful', 
+      token, 
+      username: user.username 
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Login failed' });
   }
 });
 
 app.get('/todo', authenticate, async (req, res) => {
   try {
-    const todos = await Todo.find({ user: req.user.id });
-    res.json({ todos: todos.map(t => ({ ...t._doc, id: t._id.toString(), _id: undefined })) });
+    const todos = await Todo.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const transformedTodos = todos.map(t => {
+      const todo = t.toObject();
+      todo.id = todo._id.toString();
+      delete todo._id;
+      return todo;
+    });
+    return res.json({ todos: transformedTodos });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch todos' });
+    console.error('Fetch todos error:', err);
+    return res.status(500).json({ error: 'Failed to fetch todos' });
   }
 });
 
 app.post('/todo', authenticate, async (req, res) => {
   try {
     const { title, createDate, lastUpdatedDate, dueDate, priority } = req.body;
+    
+    if (!title || title.trim().length === 0) {
+      return res.status(400).json({ error: 'Todo title is required' });
+    }
+    
+    const currentDate = new Date().toISOString();
+    
     const todo = new Todo({
       title: title.trim(),
       isCompleted: false,
-      createDate: createDate || new Date().toISOString(),
-      lastUpdatedDate: lastUpdatedDate || new Date().toISOString(),
+      createDate: createDate || currentDate,
+      lastUpdatedDate: lastUpdatedDate || currentDate,
       dueDate: dueDate || '',
       priority: priority || 'low',
       user: req.user.id,
     });
+    
     await todo.save();
     await User.findByIdAndUpdate(req.user.id, { $inc: { totalTasks: 1 } });
-    const todos = await Todo.find({ user: req.user.id });
-    res.status(201).json({ todos: todos.map(t => ({ ...t._doc, id: t._id.toString(), _id: undefined })) });
-  } catch {
-    res.status(500).json({ error: 'Failed to create todo' });
+    
+    const todos = await Todo.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const transformedTodos = todos.map(t => {
+      const todo = t.toObject();
+      todo.id = todo._id.toString();
+      delete todo._id;
+      return todo;
+    });
+    
+    return res.status(201).json({ todos: transformedTodos });
+  } catch (err) {
+    console.error('Create todo error:', err);
+    return res.status(500).json({ error: 'Failed to create todo' });
   }
 });
 
@@ -145,30 +231,54 @@ app.put('/todo/:id', authenticate, async (req, res) => {
     const { id } = req.params;
     const { title, isCompleted, createDate, lastUpdatedDate, dueDate, priority } = req.body;
 
-    const todo = await Todo.findOne({ _id: id, user: req.user.id });
-    if (!todo) return res.status(404).json({ error: 'Todo not found' });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid todo ID' });
+    }
 
-    if (title) todo.title = title.trim();
+    const todo = await Todo.findOne({ _id: id, user: req.user.id });
+    if (!todo) {
+      return res.status(404).json({ error: 'Todo not found' });
+    }
+
+    if (title !== undefined) {
+      if (title.trim().length === 0) {
+        return res.status(400).json({ error: 'Todo title cannot be empty' });
+      }
+      todo.title = title.trim();
+    }
+    
     if (typeof isCompleted === 'boolean' && todo.isCompleted !== isCompleted) {
       const inc = isCompleted ? 1 : -1;
       await User.findByIdAndUpdate(req.user.id, { $inc: { completedTasks: inc } });
       todo.isCompleted = isCompleted;
     }
-    if (createDate) todo.createDate = createDate;
-    if (lastUpdatedDate) todo.lastUpdatedDate = lastUpdatedDate;
-    if (dueDate) todo.dueDate = dueDate;
-    if (priority) {
+    
+    if (createDate !== undefined) todo.createDate = createDate;
+    if (lastUpdatedDate !== undefined) todo.lastUpdatedDate = lastUpdatedDate;
+    else todo.lastUpdatedDate = new Date().toISOString();
+    if (dueDate !== undefined) todo.dueDate = dueDate;
+    
+    if (priority !== undefined) {
       if (!['low', 'medium', 'high', 'critical'].includes(priority)) {
         return res.status(400).json({ error: 'Invalid priority value' });
       }
       todo.priority = priority;
     }
+    
     await todo.save();
 
-    const todos = await Todo.find({ user: req.user.id });
-    res.json({ todos: todos.map(t => ({ ...t._doc, id: t._id.toString(), _id: undefined })) });
-  } catch {
-    res.status(500).json({ error: 'Failed to update todo' });
+    const todos = await Todo.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const transformedTodos = todos.map(t => {
+      const todo = t.toObject();
+      todo.id = todo._id.toString();
+      delete todo._id;
+      return todo;
+    });
+    
+    return res.json({ todos: transformedTodos });
+  } catch (err) {
+    console.error('Update todo error:', err);
+    return res.status(500).json({ error: 'Failed to update todo' });
   }
 });
 
@@ -176,39 +286,81 @@ app.delete('/todo/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid todo ID' });
+    }
+
     const todo = await Todo.findOneAndDelete({ _id: id, user: req.user.id });
-    if (!todo) return res.status(404).json({ error: 'Todo not found' });
+    if (!todo) {
+      return res.status(404).json({ error: 'Todo not found' });
+    }
 
     const decCompleted = todo.isCompleted ? -1 : 0;
     await User.findByIdAndUpdate(req.user.id, {
       $inc: { totalTasks: -1, completedTasks: decCompleted }
     });
 
-    const todos = await Todo.find({ user: req.user.id });
-    res.json({ todos: todos.map(t => ({ ...t._doc, id: t._id.toString(), _id: undefined })) });
-  } catch {
-    res.status(500).json({ error: 'Failed to delete todo' });
+    const todos = await Todo.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const transformedTodos = todos.map(t => {
+      const todo = t.toObject();
+      todo.id = todo._id.toString();
+      delete todo._id;
+      return todo;
+    });
+    
+    return res.json({ todos: transformedTodos });
+  } catch (err) {
+    console.error('Delete todo error:', err);
+    return res.status(500).json({ error: 'Failed to delete todo' });
+  }
+});
+
+app.get('/user-stats', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    return res.json({
+      username: user.username,
+      email: user.email,
+      totalTasks: user.totalTasks,
+      completedTasks: user.completedTasks
+    });
+  } catch (err) {
+    console.error('User stats error:', err);
+    return res.status(500).json({ error: 'Failed to fetch user stats' });
   }
 });
 
 app.get('/get-user', async (req, res) => {
   try {
     const usercount = await User.countDocuments();
-    if (usercount === 0) return res.status(400).send("Not available");
-    res.send({ count: usercount });
-  } catch {
-    res.status(500).send("Server error");
+    return res.json({ count: usercount });
+  } catch (err) {
+    console.error('Get user count error:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
 app.get('/get-total-tasks', async (req, res) => {
   try {
     const totaltodocount = await Todo.countDocuments();
-    if (!totaltodocount) return res.status(401).json({ msg: 'Not available' });
-    res.json({ count: totaltodocount });
-  } catch {
-    res.status(500).json({ msg: 'Internal server error' });
+    return res.json({ count: totaltodocount });
+  } catch (err) {
+    console.error('Get total tasks error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+app.use((req, res) => {
+  return res.status(404).json({ error: 'Route not found' });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  return res.status(500).json({ error: 'Internal server error' });
 });
 
 const PORT = process.env.PORT || 5000;

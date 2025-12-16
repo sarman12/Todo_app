@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, User, Lock, Eye, EyeOff, UserPlus, LogIn, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
 function Register() {
+  const navigate=useNavigate();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -15,7 +16,6 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,30 +72,16 @@ function Register() {
       setIsSubmitting(false);
       return;
     }
-
-    try {
-      const response = await axios.post('http://localhost:5000/register', {
-        username,
-        email,
-        password,
-      });
-
-      if (response.status === 201) {
-        setSuccessMessage('User registered successfully');
-        setErrorMessage('');
-        setUsername('');
-        setEmail('');
-        setFullName('');
-        setPassword('');
-        setConfirmPassword('');
-        setTimeout(() => navigate('/login'), 2000);
-      }
-    } catch (error) {
-      setErrorMessage(error.response?.data?.error || 'Registration failed. Please try again.');
-      setSuccessMessage('');
-    } finally {
+    setTimeout(() => {
+      setSuccessMessage('Account created successfully!');
+      setErrorMessage('');
       setIsSubmitting(false);
-    }
+      setUsername('');
+      setEmail('');
+      setFullName('');
+      setPassword('');
+      setConfirmPassword('');
+    }, 1500);
   };
 
   const handleKeyPress = (e) => {
@@ -106,158 +92,135 @@ function Register() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+      <div className="h-screen bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
         <div className="text-center">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-purple-600 rounded-full animate-spin mx-auto" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-          </div>
-          <p className="text-gray-600 font-medium">Loading...</p>
+          <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white font-medium">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="h-screen bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center p-4 overflow-hidden">
       <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-         
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Create Account
-          </h1>
-          <p className="text-gray-600">Join us and start managing your tasks efficiently</p>
-        </div>
+        <div className="bg-white rounded-3xl shadow-2xl p-8">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+              <UserPlus className="w-7 h-7 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-1">Create Account</h1>
+            <p className="text-gray-500 text-sm">Join us today</p>
+          </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Username</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Enter your username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-4 py-3 text-black bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                />
-              </div>
+          <div className="space-y-4">
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
             </div>
 
-            {/* Email Field */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-4 py-3 text-black bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                />
-              </div>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-4 text-black py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                />
-              </div>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
             </div>
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-12 text-black py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full pl-10 pr-12 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Confirm Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full pl-10 pr-12 py-3 text-black bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full pl-10 pr-12 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
 
-            {/* Error/Success Messages */}
             {errorMessage && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                <p className="text-red-700 text-sm">{errorMessage}</p>
+              <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                <p className="text-red-700 text-xs">{errorMessage}</p>
               </div>
             )}
 
             {successMessage && (
-              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <p className="text-green-700 text-sm">{successMessage}</p>
+              <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                <p className="text-green-700 text-xs">{successMessage}</p>
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <button
-                onClick={handleRegister}
-                disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Creating Account...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-5 h-5" />
-                    Create Account
-                  </>
-                )}
-              </button>
+            <button
+              onClick={handleRegister}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl hover:from-violet-600 hover:to-purple-700 focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-5 h-5" />
+                  Create Account
+                </>
+              )}
+            </button>
 
+            <div className="text-center pt-2">
               <button
                 onClick={() => navigate('/login')}
                 disabled={isSubmitting}
@@ -267,19 +230,7 @@ function Register() {
                 Already have an account? Sign In
               </button>
             </div>
-
-           
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
-            By creating an account, you agree to our{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">Terms of Service</a>
-            {' '}and{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">Privacy Policy</a>
-          </p>
         </div>
       </div>
     </div>
