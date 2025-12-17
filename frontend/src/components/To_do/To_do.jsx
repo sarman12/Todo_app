@@ -96,20 +96,46 @@ function To_do() {
         const response = await axios.get('http://localhost:5000/todo', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-        setTodoArray(response.data.todos);
 
-        const completedIdxs = new Set(
-          response.data.todos
-            .map((t, i) => (t.isCompleted ? i : null))
-            .filter(i => i !== null)
+        const todos = response.data.todos || [];
+        // Validate and normalize todos
+        const validTodos = todos.filter(todo => todo && todo.id).map(todo => ({
+          ...todo,
+          priority: todo.priority || 'low',
+          dueDate: todo.dueDate || '',
+          createDate: todo.createDate || todayString,
+          title: todo.title || '',
+          isCompleted: todo.isCompleted || false
+        }));
+
+        setTodoArray(validTodos);
+
+        // Use todo IDs instead of indices for completed tasks
+        const completedIds = new Set(
+          validTodos
+            .filter(todo => todo.isCompleted)
+            .map(todo => todo.id)
         );
-        setCompletedTasks(completedIdxs);
+        setCompletedTasks(completedIds);
+
       } catch (err) {
         console.error('Error fetching todos:', err);
       }
     };
+
     fetchTodos();
   }, []);
+
+  // Helper function to format date for input fields
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    } catch (error) {
+      return '';
+    }
+  };
 
   const openAddModal = () => {
     setModalMode('add');
@@ -123,107 +149,220 @@ function To_do() {
   };
 
   const openEditModal = (index) => {
-    const todo = todoArray[index];
+    const todo = todoArray?.[index];
+    if (!todo) return;
     setModalMode('edit');
     setEditIndex(index);
-    setTodoElement(todo.title);
-    setCreateDate(todo.createDate || todayString);
-    setLastUpdateDate(todayString); 
-    setDueDate(todo.dueDate || '');
+    setTodoElement(todo.title || '');
+    setCreateDate(formatDateForInput(todo.createDate) || todayString);
+    setLastUpdateDate(todayString);
+    setDueDate(formatDateForInput(todo.dueDate) || '');
     setPriority(todo.priority || 'low');
     setModal(true);
   };
 
   const handleModalSave = async () => {
-    if (!todoElement.trim() || !dueDate) {
-      alert('Please enter all required fields');
-      return;
-    }
-    try {
-      if (modalMode === 'add') {
-        const response = await axios.post('http://localhost:5000/todo', {
+  if (!todoElement.trim() || !dueDate) {
+    alert('Please enter all required fields');
+    return;
+  }
+  try {
+    if (modalMode === 'add') {
+      const response = await axios.post('http://localhost:5000/todo', {
+        title: todoElement,
+        createDate,
+        lastUpdatedDate: lastUpdateDate,
+        dueDate,
+        priority,
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+
+      const newTodo = response.data.todo;
+      if (newTodo) {
+        const normalizedTodo = {
+          ...newTodo,
+          priority: newTodo.priority || 'low',
+          dueDate: newTodo.dueDate || '',
+          createDate: newTodo.createDate || todayString
+        };
+        setTodoArray(prev => [...prev, normalizedTodo]);
+      }
+
+    } else if (modalMode === 'edit' && editIndex !== null) {
+      const todoToEdit = todoArray?.[editIndex];
+      if (!todoToEdit) return;
+
+      const updateDate = new Date().toISOString().slice(0, 10);
+      
+      // Create updated todo for optimistic update
+      const updatedTodo = {
+        ...todoToEdit,
+        title: todoElement,
+        dueDate,
+        priority,
+        lastUpdatedDate: updateDate
+      };
+
+      // Optimistic update - update UI immediately
+      setTodoArray(prev => {
+        const newArr = [...prev];
+        newArr[editIndex] = updatedTodo;
+        return newArr;
+      });
+
+      // Send update to backend
+      await axios.put(
+        `http://localhost:5000/todo/${todoToEdit.id}`,
+        {
           title: todoElement,
-          createDate,
-          lastUpdatedDate: lastUpdateDate,
+          isCompleted: todoToEdit.isCompleted,
+          createDate: todoToEdit.createDate,
+          lastUpdatedDate: updateDate,
           dueDate,
           priority,
-        }, {
+        },
+        {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        });
-        setTodoArray(response.data.todos);
-      } else if (modalMode === 'edit' && editIndex !== null) {
-        const todoToEdit = todoArray[editIndex];
-        const updateDate = new Date().toISOString().slice(0, 10);
-        const response = await axios.put(
-          `http://localhost:5000/todo/${todoToEdit.id}`,
-          {
-            title: todoElement,
-            isCompleted: todoToEdit.isCompleted,
-            createDate: todoToEdit.createDate,
-            lastUpdatedDate: updateDate,
-            dueDate,
-            priority,
-          },
-          {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          }
-        );
-        setTodoArray(response.data.todos);
-      }
-      setModal(false);
-      setEditIndex(null);
-      setTodoElement('');
-      setDueDate('');
-      setPriority('low');
-      setCreateDate(todayString);
-      setLastUpdateDate(todayString);
-    } catch (error) {
-      console.error('Error saving todo:', error);
-    }
-  };
+        }
+      );
 
+      // If you want to ensure perfect sync, you could fetch the updated todo here
+      // But optimistic update should be sufficient for most cases
+    }
+
+    setModal(false);
+    setEditIndex(null);
+    setTodoElement('');
+    setDueDate('');
+    setPriority('low');
+    setCreateDate(todayString);
+    setLastUpdateDate(todayString);
+
+  } catch (error) {
+    console.error('Error saving todo:', error);
+    alert('Error saving todo. Please try again.');
+    
+    // If error occurs, refetch to ensure state consistency
+    if (modalMode === 'edit') {
+      try {
+        const response = await axios.get('http://localhost:5000/todo', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        const todos = response.data.todos || [];
+        const validTodos = todos.filter(todo => todo && todo.id).map(todo => ({
+          ...todo,
+          priority: todo.priority || 'low',
+          dueDate: todo.dueDate || '',
+          createDate: todo.createDate || todayString,
+          title: todo.title || '',
+          isCompleted: todo.isCompleted || false
+        }));
+        setTodoArray(validTodos);
+      } catch (fetchErr) {
+        console.error('Error refetching todos:', fetchErr);
+      }
+    }
+  }
+};
+  
   const handleDeleteTodo = async id => {
+    if (!id) return;
+    
     try {
       await axios.delete(`http://localhost:5000/todo/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      const updatedArray = todoArray.filter(todo => todo.id !== id);
-      setTodoArray(updatedArray);
-      setCompletedTasks(prevCompleted => {
-        const updatedCompleted = new Set(prevCompleted);
-        [...updatedCompleted].forEach(index => {
-          if (todoArray[index]?.id === id) updatedCompleted.delete(index);
-        });
-        return updatedCompleted;
+      setTodoArray(prev => prev.filter(todo => todo.id !== id));
+      setCompletedTasks(prev => {
+        const updated = new Set(prev);
+        updated.delete(id);
+        return updated;
       });
     } catch (err) {
       console.error('Error deleting todo:', err);
+      alert('Error deleting todo. Please try again.');
     }
   };
 
-  const handleCheckboxChange = async (index) => {
-    try {
-      const todo = todoArray[index];
-      const updatedIsCompleted = !todo.isCompleted;
-      await axios.put(
-        `http://localhost:5000/todo/${todo.id}`,
-        { ...todo, isCompleted: updatedIsCompleted },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
+  const handleCheckboxChange = async (todo) => {
+  try {
+    if (!todo || !todo.id) return;
+
+    const updatedIsCompleted = !todo.isCompleted;
+    
+    // Optimistic update - update UI immediately
+    const todoIndex = todoArray.findIndex(t => t.id === todo.id);
+    if (todoIndex !== -1) {
       const updatedArray = [...todoArray];
-      updatedArray[index] = { ...todo, isCompleted: updatedIsCompleted };
+      updatedArray[todoIndex] = {
+        ...updatedArray[todoIndex],
+        isCompleted: updatedIsCompleted
+      };
       setTodoArray(updatedArray);
 
+      // Update completed tasks set immediately
       setCompletedTasks(prevCompleted => {
         const updatedCompleted = new Set(prevCompleted);
-        if (updatedCompleted.has(index)) updatedCompleted.delete(index);
-        else updatedCompleted.add(index);
+        if (updatedIsCompleted) {
+          updatedCompleted.add(todo.id);
+        } else {
+          updatedCompleted.delete(todo.id);
+        }
         return updatedCompleted;
       });
-    } catch (err) {
-      console.error('Error updating todo completion status:', err);
     }
-  };
+
+    // Then send to backend
+    const response = await axios.put(
+      `http://localhost:5000/todo/${todo.id}`,
+      { ...todo, isCompleted: updatedIsCompleted },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    );
+
+    // If backend returns updated todo, use it to ensure consistency
+    const updatedTodo = response.data.todo;
+    if (updatedTodo) {
+      const finalIndex = todoArray.findIndex(t => t.id === todo.id);
+      if (finalIndex !== -1) {
+        const finalArray = [...todoArray];
+        finalArray[finalIndex] = {
+          ...updatedTodo,
+          priority: updatedTodo.priority || 'low',
+          dueDate: updatedTodo.dueDate || '',
+          createDate: updatedTodo.createDate || todayString
+        };
+        setTodoArray(finalArray);
+      }
+    }
+
+  } catch (err) {
+    console.error('Error updating todo completion status:', err);
+    alert('Error updating task. Please try again.');
+    
+    // If error, revert optimistic update
+    const revertIndex = todoArray.findIndex(t => t.id === todo.id);
+    if (revertIndex !== -1) {
+      const revertedArray = [...todoArray];
+      revertedArray[revertIndex] = {
+        ...revertedArray[revertIndex],
+        isCompleted: todo.isCompleted // Revert to original state
+      };
+      setTodoArray(revertedArray);
+
+      // Revert completed tasks set
+      setCompletedTasks(prevCompleted => {
+        const updatedCompleted = new Set(prevCompleted);
+        if (todo.isCompleted) {
+          updatedCompleted.add(todo.id);
+        } else {
+          updatedCompleted.delete(todo.id);
+        }
+        return updatedCompleted;
+      });
+    }
+  }
+};
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -234,36 +373,48 @@ function To_do() {
   const priorityOrder = { low: 1, medium: 2, high: 3, critical: 4 };
 
   const filteredAndSortedTodos = useMemo(() => {
-    let filtered = todoArray;
-    
+    let filtered = todoArray.filter(todo => todo && todo.id);
+
     if (searchTerm.trim()) {
       const lower = searchTerm.toLowerCase();
-      filtered = filtered.filter(todo => todo.title.toLowerCase().includes(lower));
+      filtered = filtered.filter(todo => 
+        todo.title && todo.title.toLowerCase().includes(lower)
+      );
     }
-    
+
     if (filterPriority) {
       filtered = filtered.filter(todo => todo.priority === filterPriority);
     }
-    
+
     if (sortKey === 'dueDateAsc') {
-      filtered = filtered.slice().sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+      filtered = filtered.slice().sort((a, b) => {
+        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return dateA - dateB;
+      });
     } else if (sortKey === 'dueDateDesc') {
-      filtered = filtered.slice().sort((a, b) => (b.dueDate || '').localeCompare(a.dueDate || ''));
+      filtered = filtered.slice().sort((a, b) => {
+        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : -Infinity;
+        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : -Infinity;
+        return dateB - dateA;
+      });
     } else if (sortKey === 'priorityAsc') {
       filtered = filtered.slice().sort(
-        (a, b) => (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0)
+        (a, b) => (priorityOrder[a.priority || 'low'] || 0) - (priorityOrder[b.priority || 'low'] || 0)
       );
     } else if (sortKey === 'priorityDesc') {
       filtered = filtered.slice().sort(
-        (a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
+        (a, b) => (priorityOrder[b.priority || 'low'] || 0) - (priorityOrder[a.priority || 'low'] || 0)
       );
     }
+
     return filtered;
   }, [todoArray, searchTerm, sortKey, filterPriority]);
 
   const calculateProgressWidth = () => {
-    if (todoArray.length === 0) return '0%';
-    return `${(completedTasks.size / todoArray.length) * 100}%`;
+    const totalTodos = todoArray.length;
+    if (totalTodos === 0) return '0%';
+    return `${(completedTasks.size / totalTodos) * 100}%`;
   };
 
   const completionRate = todoArray.length > 0
@@ -271,18 +422,27 @@ function To_do() {
     : 0;
 
   const getDaysUntilDue = (dueDate) => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    if (!dueDate) return null;
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const due = new Date(dueDate);
+      due.setHours(0, 0, 0, 0);
+      const diffTime = due - today;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    } catch (error) {
+      return null;
+    }
   };
 
   const priorityStats = useMemo(() => {
     const stats = { critical: 0, high: 0, medium: 0, low: 0 };
-    todoArray.filter(todo => !todo.isCompleted).forEach(todo => {
-      stats[todo.priority || 'low']++;
-    });
+    todoArray
+      .filter(todo => todo && !todo.isCompleted)
+      .forEach(todo => {
+        const priority = todo.priority || 'low';
+        stats[priority]++;
+      });
     return stats;
   }, [todoArray]);
 
@@ -291,6 +451,19 @@ function To_do() {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const getOriginalIndex = (todoId) => {
+    return todoArray.findIndex(todo => todo.id === todoId);
+  };
+
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return 'No due date';
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
 
   return (
@@ -320,7 +493,6 @@ function To_do() {
           </div>
         </div>
 
-        {/* Progress Section */}
         <div className="p-6 border-b border-gray-100">
           {!sidebarCollapsed ? (
             <div className="text-center">
@@ -388,8 +560,6 @@ function To_do() {
                   </div>
                 )}
               </div>
-              
-              
             </div>
           ) : (
             <div className="flex flex-col items-center space-y-3">
@@ -440,7 +610,6 @@ function To_do() {
                 )}
               </div>
               
-              {/* Compact task count */}
               <div className="text-center">
                 <div className="text-xs font-semibold text-gray-700">{completedTasks.size}/{todoArray.length}</div>
                 <div className="text-xs text-gray-500">tasks</div>
@@ -449,19 +618,18 @@ function To_do() {
           )}
         </div>
 
-        {/* Priority Stats */}
         <div className="p-6 flex-1">
           <h3 className={`text-sm font-semibold text-gray-900 mb-4 ${sidebarCollapsed ? 'sr-only' : ''}`}>
             Priority Overview
           </h3>
           <div className="space-y-3">
-            {Object.entries(priorityStats).map(([priority, count]) => {
-              const config = priorityConfig[priority];
+            {Object.entries(priorityStats).map(([priorityKey, count]) => {
+              const config = priorityConfig[priorityKey] || priorityConfig.low;
               const IconComponent = config.icon;
               
               if (sidebarCollapsed) {
                 return (
-                  <div key={priority} className="flex flex-col items-center">
+                  <div key={priorityKey} className="flex flex-col items-center">
                     <div className={`p-2 rounded-lg ${config.bg} mb-1`}>
                       <IconComponent className={`w-4 h-4 ${config.text}`} />
                     </div>
@@ -471,10 +639,10 @@ function To_do() {
               }
               
               return (
-                <div key={priority} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div key={priorityKey} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
                   <div className="flex items-center gap-3">
                     <IconComponent className={`w-4 h-4 ${config.text}`} />
-                    <span className="text-sm font-medium text-gray-700 capitalize">{priority}</span>
+                    <span className="text-sm font-medium text-gray-700 capitalize">{priorityKey}</span>
                   </div>
                   <span className="text-sm font-bold text-gray-900">{count}</span>
                 </div>
@@ -483,7 +651,6 @@ function To_do() {
           </div>
         </div>
 
-        {/* User Section */}
         <div className="p-6 border-t border-gray-100">
           {!sidebarCollapsed ? (
             <div className="flex items-center justify-between">
@@ -525,13 +692,12 @@ function To_do() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
         <div className="bg-white border-b border-gray-200 px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Tasks</h2>
               <p className="text-gray-500 mt-1">
-                {todoArray.filter(t => !t.isCompleted).length} active tasks • {completedTasks.size} completed
+                {todoArray.filter(t => t && !t.isCompleted).length} active tasks • {completedTasks.size} completed
               </p>
             </div>
             <button
@@ -544,7 +710,6 @@ function To_do() {
           </div>
         </div>
 
-        {/* Filters and Search */}
         <div className="bg-white border-b border-gray-100 px-8 py-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="relative flex-1 min-w-[300px]">
@@ -582,7 +747,6 @@ function To_do() {
           </div>
         </div>
 
-        {/* Tasks List */}
         <div className="flex-1 p-8 overflow-y-auto">
           {filteredAndSortedTodos.length === 0 ? (
             <div className="text-center py-16">
@@ -608,11 +772,16 @@ function To_do() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredAndSortedTodos.map((todo, index) => {
+              {filteredAndSortedTodos.map((todo) => {
+                if (!todo || !todo.id) return null;
+                
                 const config = priorityConfig[todo.priority || 'low'];
                 const IconComponent = config.icon;
-                const daysUntilDue = getDaysUntilDue(todo.dueDate);
+                const daysUntilDue = getDaysUntilDue(todo.dueDate || '');
                 const isOverdue = daysUntilDue < 0 && !todo.isCompleted;
+                const originalIndex = getOriginalIndex(todo.id);
+                
+                if (originalIndex === -1) return null;
                 
                 return (
                   <div
@@ -627,7 +796,7 @@ function To_do() {
                   >
                     <div className="flex items-center gap-4">
                       <button
-                        onClick={() => handleCheckboxChange(todoArray.indexOf(todo))}
+                        onClick={() => handleCheckboxChange(todo)}
                         className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
                           todo.isCompleted
                             ? 'bg-green-500 border-green-500 text-white'
@@ -642,7 +811,7 @@ function To_do() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className={`font-medium ${todo.isCompleted ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                            {todo.title}
+                            {todo.title || 'Untitled Task'}
                           </h3>
                           <span className={`px-2 py-1 rounded-md text-xs font-medium ${config.badge}`}>
                             {(todo.priority || 'low').toUpperCase()}
@@ -656,24 +825,26 @@ function To_do() {
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
-                            <span>Due {new Date(todo.dueDate).toLocaleDateString()}</span>
+                            <span>Due {formatDateForDisplay(todo.dueDate || '')}</span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            <span className={isOverdue ? 'text-red-600' : daysUntilDue <= 2 ? 'text-orange-600' : ''}>
-                              {daysUntilDue < 0 
-                                ? `${Math.abs(daysUntilDue)} days overdue` 
-                                : daysUntilDue === 0 
-                                  ? 'Due today' 
-                                  : `${daysUntilDue} days left`}
-                            </span>
-                          </div>
+                          {todo.dueDate && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span className={isOverdue ? 'text-red-600' : daysUntilDue <= 2 ? 'text-orange-600' : ''}>
+                                {daysUntilDue < 0 
+                                  ? `${Math.abs(daysUntilDue)} days overdue` 
+                                  : daysUntilDue === 0 
+                                    ? 'Due today' 
+                                    : `${daysUntilDue} days left`}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => openEditModal(todoArray.indexOf(todo))}
+                          onClick={() => openEditModal(originalIndex)}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -712,7 +883,7 @@ function To_do() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Task</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Task *</label>
                 <input
                   type="text"
                   value={todoElement}
@@ -723,7 +894,7 @@ function To_do() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Priority *</label>
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(priorityConfig).map(([key, config]) => {
                     const IconComponent = config.icon;
@@ -757,12 +928,13 @@ function To_do() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Due Date *</label>
                   <input
                     type="date"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     value={dueDate}
                     onChange={e => setDueDate(e.target.value)}
+                    required
                   />
                 </div>
               </div>
@@ -786,6 +958,7 @@ function To_do() {
         </div>
       )}
 
+      {/* Profile Sidebar */}
       <div
         className={`fixed inset-y-0 right-0 z-50 w-80 bg-white shadow-2xl transform transition-transform duration-300 ${
           showProfile ? 'translate-x-0' : 'translate-x-full'

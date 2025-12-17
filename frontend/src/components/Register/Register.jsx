@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, User, Lock, Eye, EyeOff, UserPlus, LogIn, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+
 function Register() {
-  const navigate=useNavigate();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -18,10 +18,7 @@ function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-
+    const timer = setTimeout(() => setIsLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -30,28 +27,8 @@ function Register() {
     setSuccessMessage('');
     setIsSubmitting(true);
 
-    if (!username) {
-      setErrorMessage('Username is required.');
-      setIsSubmitting(false);
-      return;
-    }
-    if (!email) {
-      setErrorMessage('Email is required.');
-      setIsSubmitting(false);
-      return;
-    }
-    if (!fullName) {
-      setErrorMessage('Full Name is required.');
-      setIsSubmitting(false);
-      return;
-    }
-    if (!password) {
-      setErrorMessage('Password is required.');
-      setIsSubmitting(false);
-      return;
-    }
-    if (!confirmPassword) {
-      setErrorMessage('Please confirm your password.');
+    if (!username || !email || !fullName || !password || !confirmPassword) {
+      setErrorMessage('Please fill all fields.');
       setIsSubmitting(false);
       return;
     }
@@ -61,33 +38,47 @@ function Register() {
       return;
     }
     if (password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters long.');
+      setErrorMessage('Password must be at least 8 characters.');
       setIsSubmitting(false);
       return;
     }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setErrorMessage('Please enter a valid email address.');
       setIsSubmitting(false);
       return;
     }
-    setTimeout(() => {
-      setSuccessMessage('Account created successfully!');
+
+    try {
+      const response = await axios.post('http://localhost:5000/register', {
+        username,
+        email,
+        fullName,
+        password
+      });
+
+      setSuccessMessage(response.data.message || 'Account created successfully!');
       setErrorMessage('');
-      setIsSubmitting(false);
+
+      if (response.data.token) localStorage.setItem('token', response.data.token);
       setUsername('');
       setEmail('');
       setFullName('');
       setPassword('');
       setConfirmPassword('');
-    }, 1500);
+
+      setTimeout(() => navigate('/login'), 1500);
+
+    } catch (err) {
+      setErrorMessage(err.response?.data?.error || 'Registration failed');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleRegister();
-    }
+    if (e.key === 'Enter') handleRegister();
   };
 
   if (isLoading) {
