@@ -182,14 +182,64 @@ app.delete('/todo/:id', authenticate, async (req, res) => {
   }
 });
 
-app.get('/user-stats', authenticate, async (req, res) => {
+app.get('/get-user', async (req, res) => {
+  let client;
   try {
-    const { data: user, error } = await supabase.from('users')
-      .select('username, email, total_tasks, completed_tasks')
-      .eq('id', req.user.id)
-      .maybeSingle();
-    if (error || !user) return res.status(404).json({ error: 'User not found' });
+    client = await pool.connect();
+    const result = await client.query(`
+      SELECT COUNT(*) as count FROM users
+    `);
+    
+    const count = parseInt(result.rows[0].count);
+    
+    res.json({ count: count || 0 });
+  } catch (err) {
+    console.error('Get user count error:', err);
+    res.status(500).json({ 
+      error: 'Server error', 
+      details: err.message 
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+app.get('/get-total-tasks', async (req, res) => {
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await client.query(`
+      SELECT COUNT(*) as count FROM todos
+    `);
+    
+    const count = parseInt(result.rows[0].count);
+    
+    res.json({ count: count || 0 });
+  } catch (err) {
+    console.error('Get total tasks error:', err);
+    res.status(500).json({ 
+      error: 'Server error', 
+      details: err.message 
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
 
+app.get('/user-stats', authenticate, async (req, res) => {
+  let client;
+  try {
+    client = await pool.connect();
+    const result = await client.query(`
+      SELECT username, email, total_tasks, completed_tasks 
+      FROM users 
+      WHERE id = $1
+    `, [req.user.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = result.rows[0];
     res.json({
       username: user.username,
       email: user.email,
@@ -199,32 +249,11 @@ app.get('/user-stats', authenticate, async (req, res) => {
   } catch (err) {
     console.error('User stats error:', err);
     res.status(500).json({ error: 'Failed to fetch user stats' });
+  } finally {
+    if (client) client.release();
   }
 });
 
-app.get('/get-user', async (req, res) => {
-  try {
-    const { count, error } = await supabase.from('users').select('*', { count: 'exact', head: true });
-    if (error) return res.status(500).json({ error: 'Server error' });
-
-    res.json({ count: count || 0 });
-  } catch (err) {
-    console.error('Get user count error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.get('/get-total-tasks', async (req, res) => {
-  try {
-    const { count, error } = await supabase.from('todos').select('*', { count: 'exact', head: true });
-    if (error) return res.status(500).json({ error: 'Internal server error' });
-
-    res.json({ count: count || 0 });
-  } catch (err) {
-    console.error('Get total tasks error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 
