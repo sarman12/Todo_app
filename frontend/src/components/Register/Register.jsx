@@ -1,89 +1,184 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, User, Lock, Eye, EyeOff, UserPlus, LogIn, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+/* eslint-disable react/no-unescaped-entities */
+// eslint-disable-next-line no-unused-vars
+import React, { useState, useEffect } from "react";
+import {
+  Mail,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  UserPlus,
+  LogIn,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Shield,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 function Register() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [tempUserData, setTempUserData] = useState(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(
+        () => setResendCooldown(resendCooldown - 1),
+        1000,
+      );
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
   const handleRegister = async () => {
-    setErrorMessage('');
-    setSuccessMessage('');
+    setErrorMessage("");
+    setSuccessMessage("");
     setIsSubmitting(true);
 
     if (!username || !email || !fullName || !password || !confirmPassword) {
-      setErrorMessage('Please fill all fields.');
+      setErrorMessage("Please fill all fields.");
       setIsSubmitting(false);
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
+      setErrorMessage("Passwords do not match.");
       setIsSubmitting(false);
       return;
     }
     if (password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters.');
+      setErrorMessage("Password must be at least 8 characters.");
       setIsSubmitting(false);
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setErrorMessage('Please enter a valid email address.');
+      setErrorMessage("Please enter a valid email address.");
       setIsSubmitting(false);
       return;
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/register', {
-        username,
+      const response = await axios.post("http://localhost:5000/send-otp", {
         email,
+        username,
         fullName,
-        password
+        password,
       });
 
-      setSuccessMessage(response.data.message || 'Account created successfully!');
-      setErrorMessage('');
+      if (response.data.success) {
+        setSuccessMessage(
+          "OTP sent to your email! Please verify to complete registration.",
+        );
+        setErrorMessage("");
+        setShowOtpInput(true);
+        setTempUserData({ username, email, fullName, password });
 
-      if (response.data.token) localStorage.setItem('token', response.data.token);
-      setUsername('');
-      setEmail('');
-      setFullName('');
-      setPassword('');
-      setConfirmPassword('');
-
-      setTimeout(() => navigate('/login'), 1500);
-
+        setUsername("");
+        setEmail("");
+        setFullName("");
+        setPassword("");
+        setConfirmPassword("");
+      }
     } catch (err) {
-      setErrorMessage(err.response?.data?.error || 'Registration failed');
+      setErrorMessage(
+        err.response?.data?.error || "Failed to send OTP. Please try again.",
+      );
       console.error(err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleVerifyOtp = async () => {
+    if (!otp) {
+      setErrorMessage("Please enter the OTP.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const response = await axios.post("http://localhost:5000/verify-otp", {
+        email: tempUserData.email,
+        otp,
+      });
+
+      if (response.data.success) {
+        setSuccessMessage(
+          response.data.message ||
+            "Account created successfully! Please login.",
+        );
+
+        if (response.data.token) {
+          localStorage.setItem("token", response.data.token);
+        }
+
+        setTimeout(() => navigate("/login"), 2000);
+      }
+    } catch (err) {
+      setErrorMessage(
+        err.response?.data?.error || "Invalid OTP. Please try again.",
+      );
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const response = await axios.post("http://localhost:5000/resend-otp", {
+        email: tempUserData.email,
+      });
+
+      if (response.data.success) {
+        setSuccessMessage("New OTP sent to your email!");
+        setResendCooldown(60);
+      }
+    } catch (err) {
+      setErrorMessage(err.response?.data?.error || "Failed to resend OTP.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter') handleRegister();
+    if (e.key === "Enter" && !showOtpInput) {
+      handleRegister();
+    } else if (e.key === "Enter" && showOtpInput) {
+      handleVerifyOtp();
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="h-screen bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+      <div className="h-screen bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white font-medium">Loading...</p>
@@ -92,15 +187,120 @@ function Register() {
     );
   }
 
+  if (showOtpInput) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-3xl shadow-2xl p-8">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <Shield className="w-7 h-7 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-1">
+                Verify Your Email
+              </h1>
+              <p className="text-gray-500 text-sm">
+                We've sent a 6-digit verification code to
+              </p>
+              <p className="text-sky-600 font-semibold text-sm mt-1">
+                {tempUserData?.email}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="relative">
+                <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) =>
+                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  onKeyPress={handleKeyPress}
+                  maxLength={6}
+                  className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all text-center text-2xl tracking-widest"
+                  autoFocus
+                />
+              </div>
+
+              {errorMessage && (
+                <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <p className="text-red-700 text-xs">{errorMessage}</p>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <p className="text-green-700 text-xs">{successMessage}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleVerifyOtp}
+                disabled={isSubmitting || otp.length !== 6}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-sky-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Verify & Register
+                  </>
+                )}
+              </button>
+
+              <div className="text-center">
+                <button
+                  onClick={handleResendOtp}
+                  disabled={resendCooldown > 0 || isSubmitting}
+                  className="text-sm text-sky-600 hover:text-sky-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {resendCooldown > 0
+                    ? `Resend OTP in ${resendCooldown}s`
+                    : "Resend OTP"}
+                </button>
+              </div>
+
+              <div className="text-center pt-2">
+                <button
+                  onClick={() => {
+                    setShowOtpInput(false);
+                    setTempUserData(null);
+                    setOtp("");
+                    setErrorMessage("");
+                    setSuccessMessage("");
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  Back to Registration
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center p-4 overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center p-4 overflow-hidden">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-3xl shadow-2xl p-8">
           <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
               <UserPlus className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-1">Create Account</h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-1">
+              Create Account
+            </h1>
             <p className="text-gray-500 text-sm">Join us today</p>
           </div>
 
@@ -113,7 +313,7 @@ function Register() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               />
             </div>
 
@@ -125,7 +325,7 @@ function Register() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               />
             </div>
 
@@ -137,7 +337,7 @@ function Register() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               />
             </div>
 
@@ -149,14 +349,18 @@ function Register() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="w-full pl-10 pr-12 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-12 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
 
@@ -168,14 +372,18 @@ function Register() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="w-full pl-10 pr-12 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-12 py-2.5 text-gray-800 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               >
-                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showConfirmPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
 
@@ -196,24 +404,24 @@ function Register() {
             <button
               onClick={handleRegister}
               disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl hover:from-violet-600 hover:to-purple-700 focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-sky-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Creating...
+                  Sending OTP...
                 </>
               ) : (
                 <>
                   <UserPlus className="w-5 h-5" />
-                  Create Account
+                  Register & Send OTP
                 </>
               )}
             </button>
 
             <div className="text-center pt-2">
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate("/login")}
                 disabled={isSubmitting}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
