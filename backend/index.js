@@ -108,7 +108,6 @@ app.post("/send-otp", async (req, res) => {
         .json({ error: "Password must be at least 8 characters" });
     }
 
-    // Check if email already exists
     const emailCheck = await pool.query(
       "SELECT id FROM users WHERE email = $1",
       [email.toLowerCase()],
@@ -117,7 +116,6 @@ app.post("/send-otp", async (req, res) => {
       return res.status(409).json({ error: "Email already registered" });
     }
 
-    // Check if username already exists
     const usernameCheck = await pool.query(
       "SELECT id FROM users WHERE username = $1",
       [username.trim()],
@@ -126,11 +124,9 @@ app.post("/send-otp", async (req, res) => {
       return res.status(409).json({ error: "Username already taken" });
     }
 
-    // Generate OTP
     const otp = generateOTP();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+    const expiresAt = Date.now() + 10 * 60 * 1000;
 
-    // Store OTP with user data
     otpStore.set(email.toLowerCase(), {
       otp,
       expiresAt,
@@ -142,10 +138,8 @@ app.post("/send-otp", async (req, res) => {
       },
     });
 
-    // Send OTP email
     await sendOTPEmail(email, otp, username);
 
-    // Clean up expired OTPs periodically
     setTimeout(
       () => {
         if (
@@ -195,7 +189,6 @@ app.post("/verify-otp", async (req, res) => {
       return res.status(400).json({ error: "Invalid OTP. Please try again." });
     }
 
-    // OTP is valid, proceed with registration
     const { userData } = storedData;
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
@@ -211,7 +204,6 @@ app.post("/verify-otp", async (req, res) => {
       { expiresIn: "24h" },
     );
 
-    // Clean up OTP from store
     otpStore.delete(email.toLowerCase());
 
     res.json({
@@ -242,7 +234,6 @@ app.post("/resend-otp", async (req, res) => {
         .json({ error: "No pending registration found. Please start over." });
     }
 
-    // Generate new OTP
     const newOtp = generateOTP();
     const expiresAt = Date.now() + 10 * 60 * 1000;
 
@@ -250,7 +241,6 @@ app.post("/resend-otp", async (req, res) => {
     storedData.expiresAt = expiresAt;
     otpStore.set(email.toLowerCase(), storedData);
 
-    // Send new OTP email
     await sendOTPEmail(email, newOtp, storedData.userData.username);
 
     res.json({
@@ -301,13 +291,11 @@ app.post("/register", async (req, res) => {
       { expiresIn: "24h" },
     );
 
-    res
-      .status(201)
-      .json({
-        message: "Registration successful",
-        token,
-        username: user.username,
-      });
+    res.status(201).json({
+      message: "Registration successful",
+      token,
+      username: user.username,
+    });
   } catch (err) {
     console.error("Registration error:", err);
     res.status(500).json({ error: "Registration failed" });
@@ -373,6 +361,7 @@ app.post("/todo", authenticate, async (req, res) => {
       return res.status(400).json({ error: "Todo title is required" });
 
     const currentDate = new Date().toISOString();
+    const formattedDueDate = dueDate && dueDate.trim() !== "" ? dueDate : null;
 
     const insert = await pool.query(
       `INSERT INTO todos (title, is_completed, create_date, last_updated_date, due_date, priority, user_id)
@@ -381,7 +370,7 @@ app.post("/todo", authenticate, async (req, res) => {
         title.trim(),
         currentDate,
         currentDate,
-        dueDate || "",
+        formattedDueDate,
         priority || "low",
         req.user.id,
       ],
@@ -422,10 +411,24 @@ app.put("/todo/:id", authenticate, async (req, res) => {
     if (typeof isCompleted === "boolean") {
       updates.push(`is_completed=$${idx++}`);
       values.push(isCompleted);
+
+      if (isCompleted === true && !todo.is_completed) {
+        await pool.query(
+          "UPDATE users SET completed_tasks = completed_tasks + 1 WHERE id = $1",
+          [req.user.id],
+        );
+      } else if (isCompleted === false && todo.is_completed) {
+        await pool.query(
+          "UPDATE users SET completed_tasks = completed_tasks - 1 WHERE id = $1",
+          [req.user.id],
+        );
+      }
     }
     if (dueDate !== undefined) {
       updates.push(`due_date=$${idx++}`);
-      values.push(dueDate);
+      const formattedDueDate =
+        dueDate && dueDate.trim() !== "" ? dueDate : null;
+      values.push(formattedDueDate);
     }
     if (priority !== undefined) {
       updates.push(`priority=$${idx++}`);
